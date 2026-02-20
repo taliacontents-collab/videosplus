@@ -282,6 +282,11 @@ Please let me know how to proceed with payment.`;
   const handlePayPalPayment = () => {
     if (!paypalClientId) return;
     
+    // Prevenir múltiplas chamadas simultâneas
+    if (isStripeLoading) {
+      return;
+    }
+    
     try {
       setIsStripeLoading(true);
       
@@ -320,7 +325,8 @@ Please let me know how to proceed with payment.`;
       console.error('Error processing PayPal payment:', error);
       alert('Failed to initialize PayPal payment. Please try again.');
     } finally {
-      setIsStripeLoading(false);
+      // Reset após um pequeno delay para permitir que a janela abra
+      setTimeout(() => setIsStripeLoading(false), 500);
     }
   };
 

@@ -495,6 +495,11 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
       return;
     }
     
+    // Prevenir múltiplas chamadas simultâneas
+    if (isStripeLoading) {
+      return;
+    }
+    
     try {
       setIsStripeLoading(true);
       
@@ -524,7 +529,8 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
       console.error('Error processing PayPal payment:', error);
       setPurchaseError('Failed to initialize PayPal payment. Please try again.');
     } finally {
-      setIsStripeLoading(false);
+      // Reset após um pequeno delay para permitir que a janela abra
+      setTimeout(() => setIsStripeLoading(false), 500);
     }
   };
 
