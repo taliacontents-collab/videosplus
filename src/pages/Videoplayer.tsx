@@ -504,8 +504,8 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
       const successUrl = `${window.location.origin}/#/payment-success?video_id=${id}&payment_method=paypal`;
       const cancelUrl = `${window.location.origin}/#/video/${id}?payment_canceled=true`;
       
-      const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3000' : (import.meta.env.VITE_API_URL || '');
-      const maskedUrl = `${API_BASE_URL}/api/paypal-checkout?` + new URLSearchParams({
+      const CHECKOUT_BASE = import.meta.env.VITE_CHECKOUT_URL || (import.meta.env.DEV ? 'http://localhost:3000' : (import.meta.env.VITE_API_URL || ''));
+      const maskedUrl = `${CHECKOUT_BASE}/api/paypal-checkout?` + new URLSearchParams({
         amount: video.price.toFixed(2),
         currency: 'USD',
         video_id: id || '',
