@@ -350,18 +350,21 @@ Please let me know if you need any assistance accessing your content.`;
       <FeaturedBanner onError={handleBannerError} />
       
       <Container maxWidth="lg" sx={{ py: 3 }}>
-        {/* Mensagem de cancelamento de pagamento com texto mais simples e menos técnico */}
+        {/* Mensagem de Cancelamento de Pagamento */}
         {showCancelMessage && (
           <Alert 
-            severity="info" 
+            severity="success" 
             sx={{ mb: 3 }}
             onClose={() => setShowCancelMessage(false)}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-              Payment cancelled
+              ✅ REDIRECIONAMENTO WHOP FUNCIONANDO!
             </Typography>
             <Typography variant="body2">
-              Your payment was cancelled. No charges were made and you can continue browsing the content normally.
+              Pagamento cancelado no promo banner. Você foi redirecionado de volta com sucesso do checkout do Whop.
+            </Typography>
+            <Typography variant="caption" component="div" sx={{ mt: 1, opacity: 0.7, fontFamily: 'monospace' }}>
+              URL: ?payment_canceled=true
             </Typography>
           </Alert>
         )}
@@ -614,9 +617,31 @@ Please let me know if you need any assistance accessing your content.`;
         </Fade>
       </Container>
       
-      {/* Seções extras simplificadas para manter o foco nos vídeos */}
+      {/* Trust Badges Section */}
+      <Box 
+        sx={{ 
+          py: 4,
+          background: theme => theme.palette.mode === 'dark'
+            ? 'rgba(26,26,26,0.5)'
+            : 'rgba(250,250,252,0.5)',
+          borderTop: theme => `1px solid ${theme.palette.divider}`,
+          borderBottom: theme => `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Container maxWidth="lg">
+          <TrustBadges variant="compact" />
+        </Container>
+      </Box>
+      
+      {/* Testimonials Section removido */}
+      
+      {/* Promo banner no final da página antes do footer */}
+      <Box sx={{ my: 4 }}>
+        <PromoOfferBanner telegramUsername={telegramUsername} />
+      </Box>
+      
       <ContactSection />
-
+      
       {/* Modal de setup da base de dados */}
       <DatabaseSetupModal 
         open={setupModalOpen}

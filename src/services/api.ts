@@ -89,27 +89,4 @@ export const createStripeCheckoutSession = async (
   }
 
   return response.json();
-};
-
-/**
- * Get PayPal Client ID from API
- */
-export const getPayPalClientId = async (): Promise<string> => {
-  const fullUrl = `${API_BASE_URL}/api/paypal-client-id`;
-  
-  const response = await fetch(fullUrl);
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error('Failed to get PayPal Client ID:', {
-      status: response.status,
-      statusText: response.statusText,
-      errorData,
-      url: fullUrl
-    });
-    throw new Error(`Failed to get PayPal Client ID: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.clientId;
 }; 

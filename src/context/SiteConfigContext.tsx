@@ -10,7 +10,6 @@ interface SiteConfig {
   who_api_key: string;
   stripe_publishable_key: string;
   stripe_secret_key: string;
-  paypal_client_id?: string;
   telegram_username: string;
   video_list_title?: string;
   crypto?: string[];
@@ -35,7 +34,6 @@ interface SiteConfigContextType {
   whoApiKey: string;
   stripePublishableKey: string;
   stripeSecretKey: string;
-  paypalClientId: string;
   telegramUsername: string;
   videoListTitle: string;
   cryptoWallets: string[];
@@ -65,7 +63,6 @@ const SiteConfigContext = createContext<SiteConfigContextType>({
   whoApiKey: '',
   stripePublishableKey: '',
   stripeSecretKey: '',
-  paypalClientId: '',
   telegramUsername: '',
   videoListTitle: 'Available Videos',
   cryptoWallets: [],
@@ -103,7 +100,6 @@ export const SiteConfigProvider = ({ children }: { children: ReactNode }) => {
       who_api_key: data.whoApiKey,
       stripe_publishable_key: data.stripePublishableKey,
       stripe_secret_key: data.stripeSecretKey,
-      paypal_client_id: data.paypalClientId,
       telegram_username: data.telegramUsername,
       video_list_title: data.videoListTitle,
       crypto: data.crypto,
@@ -134,7 +130,6 @@ export const SiteConfigProvider = ({ children }: { children: ReactNode }) => {
               whoApiKey: supa.who_api_key || '',
               stripePublishableKey: supa.stripe_publishable_key || '',
               stripeSecretKey: supa.stripe_secret_key || '',
-              paypalClientId: supa.paypal_client_id || '',
               telegramUsername: supa.telegram_username || '',
               videoListTitle: supa.video_list_title || 'Available Videos',
               crypto: supa.crypto || [],
@@ -165,7 +160,6 @@ export const SiteConfigProvider = ({ children }: { children: ReactNode }) => {
           who_api_key: '',
           stripe_publishable_key: '',
           stripe_secret_key: '',
-          paypal_client_id: '',
           telegram_username: '',
           video_list_title: 'Available Videos',
           crypto: [],
@@ -205,7 +199,6 @@ export const SiteConfigProvider = ({ children }: { children: ReactNode }) => {
           who_api_key: updates.whoApiKey,
           stripe_publishable_key: updates.stripePublishableKey,
           stripe_secret_key: updates.stripeSecretKey,
-          paypal_client_id: updates.paypalClientId,
           telegram_username: updates.telegramUsername,
           video_list_title: updates.videoListTitle,
           crypto: updates.crypto,
@@ -233,7 +226,6 @@ export const SiteConfigProvider = ({ children }: { children: ReactNode }) => {
           whoApiKey: updates.whoApiKey ?? currentConfig.whoApiKey,
           stripePublishableKey: updates.stripePublishableKey ?? currentConfig.stripePublishableKey,
           stripeSecretKey: updates.stripeSecretKey ?? currentConfig.stripeSecretKey,
-          paypalClientId: updates.paypalClientId ?? currentConfig.paypalClientId,
           telegramUsername: updates.telegramUsername ?? currentConfig.telegramUsername,
           videoListTitle: updates.videoListTitle ?? currentConfig.videoListTitle,
           crypto: updates.crypto ?? currentConfig.crypto,
@@ -270,7 +262,6 @@ export const SiteConfigProvider = ({ children }: { children: ReactNode }) => {
     whoApiKey: config?.who_api_key || '',
     stripePublishableKey: config?.stripe_publishable_key || '',
     stripeSecretKey: config?.stripe_secret_key || '',
-    paypalClientId: config?.paypal_client_id || '',
     telegramUsername: config?.telegram_username || '',
     videoListTitle: config?.video_list_title || 'Available Videos',
     cryptoWallets: config?.crypto || [],

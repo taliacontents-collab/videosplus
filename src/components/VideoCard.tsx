@@ -49,7 +49,7 @@ const VideoCard: FC<VideoCardProps> = ({ video }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isThumbnailLoading, setIsThumbnailLoading] = useState(true);
   const [thumbnailError, setThumbnailError] = useState(false);
-  const { telegramUsername, stripePublishableKey, cryptoWallets, whoApiKey, paypalClientId, loading: configLoading } = useSiteConfig();
+  const { telegramUsername, stripePublishableKey, cryptoWallets, whoApiKey, loading: configLoading } = useSiteConfig();
   const [isStripeLoading, setIsStripeLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedCryptoWallet, setSelectedCryptoWallet] = useState('');
@@ -276,57 +276,6 @@ Please let me know how to proceed with payment.`;
     } finally {
       setIsStripeLoading(false);
       setShowPaymentModal(false);
-    }
-  };
-
-  const handlePayPalPayment = () => {
-    if (!paypalClientId) return;
-    
-    // Prevenir múltiplas chamadas simultâneas
-    if (isStripeLoading) {
-      return;
-    }
-    
-    try {
-      setIsStripeLoading(true);
-      
-      const productNames = [
-        "Personal Development Ebook",
-        "Financial Freedom Ebook",
-        "Digital Marketing Guide",
-        "Health & Wellness Ebook",
-        "Productivity Masterclass",
-        "Mindfulness & Meditation Guide",
-        "Entrepreneurship Blueprint"
-      ];
-      const randomProductName = productNames[Math.floor(Math.random() * productNames.length)];
-      
-      const successUrl = `${window.location.origin}/#/payment-success?video_id=${video.$id}&payment_method=paypal`;
-      const cancelUrl = `${window.location.origin}/#/video/${video.$id}?payment_canceled=true`;
-      
-      const CHECKOUT_BASE = import.meta.env.VITE_CHECKOUT_URL || (import.meta.env.DEV ? 'http://localhost:3000' : (import.meta.env.VITE_API_URL || ''));
-      const maskedUrl = `${CHECKOUT_BASE}/api/paypal-checkout?` + new URLSearchParams({
-        amount: video.price.toFixed(2),
-        currency: 'USD',
-        video_id: video.$id || '',
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        product_name: randomProductName
-      }).toString();
-      
-      // Abrir apenas uma janela diretamente com a URL do checkout (sem about:blank nem iframe)
-      const paypalWindow = window.open(maskedUrl, '_blank', 'noopener,noreferrer');
-      if (!paypalWindow) {
-        window.location.href = maskedUrl;
-      }
-      
-      setShowPaymentModal(false);
-    } catch (error) {
-      console.error('Error processing PayPal payment:', error);
-      alert('Failed to initialize PayPal payment. Please try again.');
-    } finally {
-      // Reset após um pequeno delay para permitir que a janela abra
-      setTimeout(() => setIsStripeLoading(false), 500);
     }
   };
 
@@ -811,35 +760,6 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
                 }}
               >
                 {isStripeLoading ? 'Processing...' : 'PAY'}
-              </Button>
-            )}
-
-            {/* PayPal Payment - Only show if configured */}
-            {!configLoading && paypalClientId && paypalClientId.trim() !== '' && (
-              <Button
-                variant="contained"
-                fullWidth
-                size="large"
-                startIcon={<CreditCardIcon />}
-                onClick={handlePayPalPayment}
-                disabled={isStripeLoading}
-                sx={{
-                  mb: 2,
-                  py: 2,
-                  background: 'linear-gradient(45deg, #0070ba 30%, #009cde 90%)',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '1rem',
-                  '&:hover': {
-                    background: 'linear-gradient(45deg, #0070ba 40%, #009cde 100%)',
-                  },
-                  '&:disabled': {
-                    background: '#555',
-                    color: '#999'
-                  }
-                }}
-              >
-                {isStripeLoading ? 'Processing...' : 'Pay instantly'}
               </Button>
             )}
 

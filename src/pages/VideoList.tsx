@@ -139,6 +139,9 @@ const VideoList: FC = () => {
   const [sortOption, setSortOption] = useState<SortOption>(SortOption.NEWEST);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
+  const [durationFilter, setDurationFilter] = useState<string | null>(null);
   const [showAdultWarning, setShowAdultWarning] = useState(false);
   
   const { user } = useAuth();
@@ -257,6 +260,19 @@ const VideoList: FC = () => {
     setSearchQuery(event.target.value);
   };
   
+  const handlePriceRangeChange = (event: Event, newValue: number | number[]) => {
+    setPriceRange(newValue as [number, number]);
+  };
+  
+  const handleDurationFilterChange = (value: string | null) => {
+    setDurationFilter(value === durationFilter ? null : value);
+  };
+  
+  const handleClearFilters = () => {
+    setPriceRange([0, 100]);
+    setDurationFilter(null);
+  };
+
   // Handle adult content warning acknowledgment
   const handleCloseAdultWarning = () => {
     localStorage.setItem('adult_content_warning_seen', 'true');
@@ -370,9 +386,58 @@ const VideoList: FC = () => {
             {siteConfig?.video_list_title || 'Available Videos'}
           </Typography>
           {!loading && loadedVideos.length > 0 && (
-            <Typography variant="body2" color="text.secondary">
-              {`Showing ${loadedVideos.length} video${loadedVideos.length !== 1 ? 's' : ''}`}
-            </Typography>
+            <Box sx={{ mt: -1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {isLoadingMore ? `Loading... ${loadedVideos.length} videos shown` : `Showing ${loadedVideos.length} video${loadedVideos.length !== 1 ? 's' : ''}`}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Chip 
+                  label={`From $${Math.min(...loadedVideos.map(v => v.price)).toFixed(2)}`}
+                  size="small"
+                  sx={{ 
+                    backgroundColor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    color: theme => theme.palette.text.primary,
+                    fontWeight: 'bold',
+                    border: theme => `1px solid ${theme.palette.divider}`
+                  }}
+                />
+                <Chip 
+                  label={`Up to $${Math.max(...loadedVideos.map(v => v.price)).toFixed(2)}`}
+                  size="small"
+                  sx={{ 
+                    backgroundColor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    color: theme => theme.palette.text.primary,
+                    fontWeight: 'bold',
+                    border: theme => `1px solid ${theme.palette.divider}`
+                  }}
+                />
+                <Chip 
+                  label={`Avg: $${(loadedVideos.reduce((sum, v) => sum + v.price, 0) / loadedVideos.length).toFixed(2)}`}
+                  size="small"
+                  sx={{ 
+                    backgroundColor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    color: theme => theme.palette.text.primary,
+                    fontWeight: 'bold',
+                    border: theme => `1px solid ${theme.palette.divider}`
+                  }}
+                />
+                
+                {/* Loading progress indicator */}
+                {isLoadingMore && (
+                  <Chip 
+                    label="Loading more..."
+                    size="small"
+                    sx={{ 
+                      backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                      color: '#2196F3',
+                      fontWeight: 'bold',
+                      border: '1px solid rgba(33, 150, 243, 0.3)',
+                      animation: 'pulse 1.5s ease-in-out infinite'
+                    }}
+                  />
+                )}
+              </Box>
+            </Box>
           )}
         </Box>
         
@@ -398,23 +463,95 @@ const VideoList: FC = () => {
             }}
           />
           
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: '150px' } }}>
-            <InputLabel id="sort-select-label">Sort By</InputLabel>
-            <Select
-              labelId="sort-select-label"
-              value={sortOption}
-              label="Sort By"
-              onChange={handleSortChange}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: '150px' } }}>
+              <InputLabel id="sort-select-label">Sort By</InputLabel>
+              <Select
+                labelId="sort-select-label"
+                value={sortOption}
+                label="Sort By"
+                onChange={handleSortChange}
+              >
+                <MenuItem value={SortOption.NEWEST}>Newest</MenuItem>
+                <MenuItem value={SortOption.PRICE_ASC}>Price: Low to High</MenuItem>
+                <MenuItem value={SortOption.PRICE_DESC}>Price: High to Low</MenuItem>
+                <MenuItem value={SortOption.VIEWS_DESC}>Most Viewed</MenuItem>
+                <MenuItem value={SortOption.DURATION_DESC}>Longest</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <Button 
+              variant={showFilters ? "contained" : "outlined"}
+              color="primary"
+              startIcon={<FilterListIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              size="small"
             >
-              <MenuItem value={SortOption.NEWEST}>Newest</MenuItem>
-              <MenuItem value={SortOption.PRICE_ASC}>Price: Low to High</MenuItem>
-              <MenuItem value={SortOption.PRICE_DESC}>Price: High to Low</MenuItem>
-              <MenuItem value={SortOption.VIEWS_DESC}>Most Viewed</MenuItem>
-              <MenuItem value={SortOption.DURATION_DESC}>Longest</MenuItem>
-            </Select>
-          </FormControl>
+              Filters
+            </Button>
+          </Box>
         </Box>
       </Box>
+      
+      <Collapse in={showFilters}>
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Filter Options
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                Price Range (${priceRange[0]} - ${priceRange[1]})
+              </Typography>
+              <Slider
+                value={priceRange}
+                onChange={handlePriceRangeChange}
+                valueLabelDisplay="auto"
+                min={0}
+                max={100}
+                sx={{ mt: 2 }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                Duration
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                <Chip 
+                  label="Short (<5 min)" 
+                  onClick={() => handleDurationFilterChange('short')}
+                  color={durationFilter === 'short' ? 'primary' : 'default'}
+                  variant={durationFilter === 'short' ? 'filled' : 'outlined'}
+                />
+                <Chip 
+                  label="Medium (5-15 min)" 
+                  onClick={() => handleDurationFilterChange('medium')}
+                  color={durationFilter === 'medium' ? 'primary' : 'default'}
+                  variant={durationFilter === 'medium' ? 'filled' : 'outlined'}
+                />
+                <Chip 
+                  label="Long (>15 min)" 
+                  onClick={() => handleDurationFilterChange('long')}
+                  color={durationFilter === 'long' ? 'primary' : 'default'}
+                  variant={durationFilter === 'long' ? 'filled' : 'outlined'}
+                />
+              </Box>
+            </Grid>
+          </Grid>
+          
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button 
+              variant="outlined" 
+              onClick={handleClearFilters}
+            >
+              Clear Filters
+            </Button>
+          </Box>
+        </Paper>
+      </Collapse>
       
       {debouncedSearchQuery && (
         <Paper sx={{ p: 2, mb: 3, bgcolor: 'background.paper', borderRadius: 1 }}>

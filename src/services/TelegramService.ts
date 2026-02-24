@@ -6,7 +6,7 @@ interface TelegramNotification {
   buyerEmail?: string;
   buyerName?: string;
   transactionId: string;
-  paymentMethod: 'paypal' | 'stripe' | 'crypto' | 'who';
+  paymentMethod: 'paypal' | 'stripe' | 'crypto';
   timestamp: string;
 }
 

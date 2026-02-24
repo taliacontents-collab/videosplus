@@ -39,7 +39,6 @@ export interface SiteConfigData {
   whoApiKey: string;
   stripePublishableKey: string;
   stripeSecretKey: string;
-  paypalClientId: string;
   telegramUsername: string;
   videoListTitle: string;
   crypto: any[];
