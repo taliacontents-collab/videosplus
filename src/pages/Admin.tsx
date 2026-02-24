@@ -138,6 +138,7 @@ interface SiteConfig {
   who_api_key: string;
   stripe_publishable_key: string;
   stripe_secret_key: string;
+  paypal_client_id?: string;
   telegram_username: string;
   video_list_title?: string;
   crypto?: string[];
@@ -224,6 +225,7 @@ const Admin: FC = () => {
   const [whoApiKey, setWhoApiKey] = useState('');
   const [stripePublishableKey, setStripePublishableKey] = useState('');
   const [stripeSecretKey, setStripeSecretKey] = useState('');
+  const [paypalClientId, setPaypalClientId] = useState('');
   const [telegramUsername, setTelegramUsername] = useState('');
   const [videoListTitle, setVideoListTitle] = useState('');
   const [cryptoWallets, setCryptoWallets] = useState<string[]>([]);
@@ -404,6 +406,7 @@ const Admin: FC = () => {
         who_api_key: configData.who_api_key || '',
         stripe_publishable_key: configData.stripe_publishable_key || '',
         stripe_secret_key: configData.stripe_secret_key || '',
+        paypal_client_id: configData.paypal_client_id || '',
         telegram_username: configData.telegram_username || '',
         video_list_title: configData.video_list_title || 'Available Videos',
         crypto: Array.isArray(configData.crypto) ? configData.crypto : [],
@@ -416,6 +419,7 @@ const Admin: FC = () => {
       setWhoApiKey(config.who_api_key);
       setStripePublishableKey(config.stripe_publishable_key || '');
       setStripeSecretKey(config.stripe_secret_key || '');
+      setPaypalClientId(config.paypal_client_id || '');
       setTelegramUsername(config.telegram_username);
       setVideoListTitle(config.video_list_title || 'Available Videos');
       setCryptoWallets(config.crypto || []);
@@ -728,6 +732,7 @@ const Admin: FC = () => {
         whoApiKey: whoApiKey,
         stripePublishableKey: stripePublishableKey,
         stripeSecretKey: stripeSecretKey,
+        paypalClientId: paypalClientId,
         telegramUsername: telegramUsername,
         videoListTitle: videoListTitle,
         crypto: cryptoWallets,
@@ -753,6 +758,7 @@ const Admin: FC = () => {
         who_api_key: configData.whoApiKey,
         stripe_publishable_key: configData.stripePublishableKey,
         stripe_secret_key: configData.stripeSecretKey,
+        paypal_client_id: configData.paypalClientId,
         telegram_username: configData.telegramUsername,
         video_list_title: configData.videoListTitle,
         crypto: configData.crypto,
@@ -1379,6 +1385,16 @@ const Admin: FC = () => {
                     variant="outlined"
                     sx={{ mb: 2 }}
                   />
+                  
+                  <TextField
+                    fullWidth
+                    label="PayPal Client ID"
+                    value={paypalClientId}
+                    onChange={(e) => setPaypalClientId(e.target.value)}
+                    variant="outlined"
+                    sx={{ mb: 2 }}
+                    helperText="Enter your PayPal Client ID (starts with A... for production or A...sandbox for sandbox)"
+                  />
                 </Grid>
 
                 {/* Email Settings */}
@@ -1635,6 +1651,13 @@ const Admin: FC = () => {
                   </Typography>
                   <Typography variant="body1" sx={{ mb: 2 }}>
                     {siteConfig.stripe_publishable_key ? '***' + siteConfig.stripe_publishable_key.slice(-4) : 'Not set'}
+                  </Typography>
+                  
+                  <Typography variant="subtitle2" color="text.secondary">
+                    PayPal Client ID
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    {siteConfig.paypal_client_id ? '***' + siteConfig.paypal_client_id.slice(-4) : 'Not set'}
                   </Typography>
                   
                   <Typography variant="subtitle2" color="text.secondary">

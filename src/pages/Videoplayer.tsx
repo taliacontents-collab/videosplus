@@ -36,6 +36,7 @@ import IconButton from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
 import { StripeService } from '../services/StripeService';
 import { WhoService } from '../services/WhoService';
+import { PayPalService, PayPalScriptProvider, PayPalButtons } from '../services/PayPalService';
 import Chip from '@mui/material/Chip';
 
 // Extend Video interface to include product_link
@@ -68,19 +69,15 @@ const VideoPlayer: FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { telegramUsername, stripePublishableKey, cryptoWallets, siteName, whoApiKey, loading: configLoading } = useSiteConfig();
+  const { telegramUsername, stripePublishableKey, cryptoWallets, siteName, whoApiKey, paypalClientId, loading: configLoading } = useSiteConfig();
   const [video, setVideo] = useState<Video | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [videoSources, setVideoSources] = useState<Array<{ id: string; source_file_id: string }>>([]);
-  const [sourceUrls, setSourceUrls] = useState<string[]>([]);
-  const [currentSourceIndex, setCurrentSourceIndex] = useState<number>(0);
   const [allVideoUrls, setAllVideoUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [suggestedVideos, setSuggestedVideos] = useState<Video[]>([]);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showOverlay, setShowOverlay] = useState(true);
   const [showCryptoModal, setShowCryptoModal] = useState(false);
   const [copiedWalletIndex, setCopiedWalletIndex] = useState<number | null>(null);
   const [purchasedProductName, setPurchasedProductName] = useState<string>("");
@@ -89,7 +86,6 @@ const VideoPlayer: FC = () => {
   const [selectedCryptoWallet, setSelectedCryptoWallet] = useState('');
   const theme = useTheme();
   const videoContainerRef = useRef<HTMLDivElement | null>(null);
-  const [isVideoReady, setIsVideoReady] = useState(false);
   const [showCancelMessage, setShowCancelMessage] = useState(false);
 
   // Debug: Log Whop API key when it changes
@@ -146,16 +142,9 @@ const VideoPlayer: FC = () => {
         try {
           const sources = await VideoService.getVideoSources(id);
           setVideoSources(sources.map(s => ({ id: s.id, source_file_id: s.source_file_id })));
-          const resolved: string[] = [];
-          for (const s of sources) {
-            const u = await VideoService.getFileUrlById(s.source_file_id);
-            if (u) resolved.push(u);
-          }
-          setSourceUrls(resolved);
-          
-          // Combine main video with sources for navigation
+
           const allUrls: string[] = [];
-          
+
           // Add main video first if it exists
           const mainVideoUrl = await VideoService.getVideoFileUrl(id);
           if (mainVideoUrl) {
@@ -163,10 +152,14 @@ const VideoPlayer: FC = () => {
             setPreviewUrl(mainVideoUrl);
           }
           
-          // Add sources
-          allUrls.push(...resolved);
+          // Add first extra source if exists (we não precisamos de navegação entre várias)
+          if (sources.length > 0) {
+            const firstSourceUrl = await VideoService.getFileUrlById(sources[0].source_file_id);
+            if (firstSourceUrl) {
+              allUrls.push(firstSourceUrl);
+            }
+          }
           setAllVideoUrls(allUrls);
-          setCurrentSourceIndex(0);
         } catch (err) {
           console.error('Error loading preview video:', err);
           // Don't set error, just log it - the thumbnail will be shown instead
@@ -212,21 +205,6 @@ const VideoPlayer: FC = () => {
 
     loadVideo();
   }, [id, user]);
-
-  // Lazy-load video when visible (must be before any early returns)
-  useEffect(() => {
-    if (!videoContainerRef.current || isVideoReady) return;
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setIsVideoReady(true);
-        }
-      });
-    }, { root: null, threshold: 0.2 });
-    observer.observe(videoContainerRef.current);
-    return () => observer.disconnect();
-  }, [isVideoReady]);
-
 
   // Format duration (e.g., "1:30" to "1 min 30 sec")
   const formatDuration = (duration?: string | number) => {
@@ -332,23 +310,6 @@ Please let me know how to proceed with payment.`;
 
   const handleBack = () => {
     navigate(-1);
-  };
-
-  const handleVideoPlay = () => {
-    setIsPlaying(true);
-    setShowOverlay(false);
-    if (!isVideoReady) setIsVideoReady(true);
-  };
-
-  const handleVideoPause = () => {
-    setIsPlaying(false);
-    // Don't show overlay when paused, as it might block controls
-  };
-  
-  const handleVideoInteraction = () => {
-    // Hide overlay when user interacts with the video
-    setShowOverlay(false);
-    if (!isVideoReady) setIsVideoReady(true);
   };
 
   // Format date to readable format
@@ -487,6 +448,52 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
     }
   };
 
+  // Handle PayPal payment - abre uma única janela com a página de checkout
+  const handlePayPalPayment = () => {
+    if (!video || !paypalClientId) {
+      setPurchaseError('PayPal configuration is missing or video information not available');
+      return;
+    }
+    
+    // Prevenir múltiplas chamadas simultâneas
+    if (isStripeLoading) {
+      return;
+    }
+    
+    try {
+      setIsStripeLoading(true);
+      
+      const randomProductName = getRandomProductName();
+      setPurchasedProductName(randomProductName);
+      
+      const successUrl = `${window.location.origin}/#/payment-success?video_id=${id}&payment_method=paypal`;
+      const cancelUrl = `${window.location.origin}/#/video/${id}?payment_canceled=true`;
+      
+      const CHECKOUT_BASE = import.meta.env.VITE_CHECKOUT_URL || (import.meta.env.DEV ? 'http://localhost:3000' : (import.meta.env.VITE_API_URL || ''));
+      const maskedUrl = `${CHECKOUT_BASE}/api/paypal-checkout?` + new URLSearchParams({
+        amount: video.price.toFixed(2),
+        currency: 'USD',
+        video_id: id || '',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        product_name: randomProductName
+      }).toString();
+      
+      // Abrir apenas uma janela diretamente com a URL do checkout (sem about:blank nem iframe)
+      const paypalWindow = window.open(maskedUrl, '_blank', 'noopener,noreferrer');
+      if (!paypalWindow) {
+        // Popup bloqueado: redirecionar na mesma aba
+        window.location.href = maskedUrl;
+      }
+    } catch (error) {
+      console.error('Error processing PayPal payment:', error);
+      setPurchaseError('Failed to initialize PayPal payment. Please try again.');
+    } finally {
+      // Reset após um pequeno delay para permitir que a janela abra
+      setTimeout(() => setIsStripeLoading(false), 500);
+    }
+  };
+
   // Removed modal-based Stripe handler
 
   // Note: Stripe payment success is now handled by redirecting to /payment-success page
@@ -531,15 +538,15 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
         width: '100%', 
       overflow: 'hidden' 
     }}>
-      {/* Video player section */}
+      {/* Video player section (sem overlays nem navegação extra) */}
       <Box sx={{ width: '100%', bgcolor: '#000' }}>
         <Box sx={{ 
           maxWidth: '1200px', 
           margin: '0 auto',
           position: 'relative'
         }}>
-          {(sourceUrls.length > 0 || previewUrl) ? (
-            // Native browser player
+          {allVideoUrls.length > 0 || previewUrl ? (
+            // Native browser player (carrega direto para evitar problemas de reprodução)
             <Box ref={videoContainerRef} sx={{ 
               width: '100%',
               height: '500px',
@@ -550,18 +557,14 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
               bgcolor: '#000'
             }}>
               <video 
-                src={isVideoReady ? (allVideoUrls.length > 0 ? allVideoUrls[currentSourceIndex] : (previewUrl || undefined)) : undefined}
+                src={allVideoUrls[0] || previewUrl || undefined}
                 controls 
                 autoPlay={false}
                 preload="none"
-              poster={video?.thumbnailUrl}
-              onPlay={handleVideoPlay}
-              onPause={handleVideoPause}
-                onClick={handleVideoInteraction}
-                onMouseOver={handleVideoInteraction}
+                poster={video?.thumbnailUrl}
                 onError={(e) => {
                   console.error('Video load error:', e);
-                  console.error('Video URL:', allVideoUrls[currentSourceIndex]);
+                  console.error('Video URL:', allVideoUrls[0] || previewUrl);
                   console.error('Thumbnail URL:', video?.thumbnailUrl);
                 }}
                 style={{
@@ -574,8 +577,8 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
                   zIndex: 1000 /* Ensure video controls are above overlay */
                 }}
               >
-                {isVideoReady && (
-                <source src={allVideoUrls.length > 0 ? allVideoUrls[currentSourceIndex] : (previewUrl || undefined)} type="video/mp4" />
+                {(allVideoUrls[0] || previewUrl) && (
+                  <source src={allVideoUrls[0] || previewUrl || undefined} type="video/mp4" />
                 )}
                 Seu navegador não suporta o elemento de vídeo.
               </video>
@@ -613,88 +616,6 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
                 minHeight: '300px'
               }}
             />
-            
-              {/* Purchase overlay */}
-              {showOverlay && (
-            <Box
-              sx={{
-                position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  padding: 3,
-                  background: 'linear-gradient(transparent, rgba(0,0,0,0.9))',
-                  color: 'white',
-                display: 'flex',
-                  justifyContent: 'space-between',
-                alignItems: 'center',
-                  zIndex: 999
-                }}
-              >
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {video?.title || 'Video Details'}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <AccessTimeIcon fontSize="small" />
-                      <Typography variant="body2">
-                        {video?.duration ? formatDuration(video.duration) : 'N/A'}
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <VisibilityIcon fontSize="small" />
-                      <Typography variant="body2">
-                        {formatViews(video?.views)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-                
-              </Box>
-              )}
-            </Box>
-          )}
-          
-          {/* Title overlay (only shown when not interacting with video) */}
-          {previewUrl && showOverlay && (
-            <Box
-              sx={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                padding: 3,
-                background: 'linear-gradient(transparent, rgba(0,0,0,0.9))',
-                color: 'white',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                zIndex: 998, /* Below the video controls */
-              }}
-            >
-              <Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  {video?.title || 'Video Details'}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <AccessTimeIcon fontSize="small" />
-                    <Typography variant="body2">
-                      {video?.duration ? formatDuration(video.duration) : 'N/A'}
-                    </Typography>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <VisibilityIcon fontSize="small" />
-                    <Typography variant="body2">
-                      {formatViews(video?.views)}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-              
             </Box>
           )}
           </Box>
@@ -716,21 +637,18 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
           </Alert>
         )}
         
-        {/* Mensagem de Cancelamento de Pagamento */}
+        {/* Mensagem de cancelamento de pagamento (texto mais simples para o cliente) */}
         {showCancelMessage && (
           <Alert 
-            severity="success" 
+            severity="info" 
             sx={{ mb: 3 }}
             onClose={() => setShowCancelMessage(false)}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-              ✅ REDIRECIONAMENTO WHOP FUNCIONANDO!
+              Payment cancelled
             </Typography>
             <Typography variant="body2">
-              Pagamento cancelado. Você foi redirecionado de volta com sucesso do checkout do Whop.
-            </Typography>
-            <Typography variant="caption" component="div" sx={{ mt: 1, opacity: 0.7, fontFamily: 'monospace' }}>
-              URL: ?payment_canceled=true
+              Your payment was cancelled. No charges were made and you can try again at any time.
             </Typography>
           </Alert>
         )}
@@ -743,63 +661,6 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
         >
           Back to Videos
         </Button>
-        
-        {/* Video navigation controls - OUTSIDE the player */}
-        {allVideoUrls.length > 1 && (
-          <Box sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 2,
-            mb: 3,
-            p: 2,
-            backgroundColor: 'rgba(0,0,0,0.05)',
-            borderRadius: 2,
-          }}>
-            <Button
-              variant="outlined"
-              color="primary"
-              size="large"
-              onClick={() => setCurrentSourceIndex((idx) => (idx - 1 + allVideoUrls.length) % allVideoUrls.length)}
-              startIcon={<ArrowBackIcon />}
-              sx={{ 
-                minWidth: 120,
-                height: 50,
-                fontWeight: 'bold'
-              }}
-            >
-              Previous Preview
-            </Button>
-            
-            <Box sx={{
-              backgroundColor: 'primary.main',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '20px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              minWidth: 80,
-              textAlign: 'center'
-            }}>
-              {currentSourceIndex + 1} / {allVideoUrls.length}
-            </Box>
-            
-            <Button
-              variant="outlined"
-              color="primary"
-              size="large"
-              onClick={() => setCurrentSourceIndex((idx) => (idx + 1) % allVideoUrls.length)}
-              endIcon={<ArrowBackIcon sx={{ transform: 'rotate(180deg)' }} />}
-              sx={{ 
-                minWidth: 120,
-                height: 50,
-                fontWeight: 'bold'
-              }}
-            >
-              Next Preview
-            </Button>
-          </Box>
-        )}
         
         {/* Video title, badges and free link */}
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -822,7 +683,7 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
           )}
         </Box>
         
-        {/* Video description */}
+        {/* Video description + simple checkout area */}
         <Box sx={{ mb: 4 }}>
             <Box sx={{ 
               display: 'flex', 
@@ -865,91 +726,111 @@ I'm sending the payment from my wallet. Please confirm the transaction and provi
                </Box>
             </Box>
           
-          <Typography variant="body1" paragraph sx={{ 
-            color: theme.palette.mode === 'dark' ? '#ccc' : theme.palette.text.secondary, 
-            mt: 2 
-          }}>
+          <Typography
+            variant="body1"
+            paragraph
+            sx={{ 
+              color: theme.palette.mode === 'dark' ? '#ccc' : theme.palette.text.secondary, 
+              mt: 2 
+            }}
+          >
             {video?.description}
           </Typography>
           
-            {!video?.is_free && (
-              <Box sx={{ mt: 4 }}>
-                <Grid container spacing={2} justifyContent="center" alignItems="stretch" sx={{ mb: 2 }}>
-                  <Grid item xs={12} md={8}>
-                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'stretch' }}>
-                      {/* Stripe Button - Only show if configured */}
-                      {!configLoading && stripePublishableKey && stripePublishableKey.trim() !== '' && (
-                        <Button
-                          variant="contained"
-                          fullWidth
-                          onClick={handleStripePaymentRedirect}
-                          disabled={isStripeLoading}
-                          sx={{
-                            py: 2,
-                            backgroundColor: '#2e7d32',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: 18,
-                            '&:hover': { backgroundColor: '#1b5e20' },
-                            '&:disabled': { backgroundColor: '#9e9e9e', color: '#fff' }
-                          }}
-                        >
-                          {isStripeLoading ? 'Processing…' : 'PAY'}
-                        </Button>
-                      )}
-                      
-                      {/* Whop Button - Only show if configured */}
-                      {!configLoading && whoApiKey && whoApiKey.trim() !== '' ? (
-                        <Button
-                          variant="contained"
-                          fullWidth
-                          onClick={handleWhoPaymentRedirect}
-                          disabled={isStripeLoading || !whoApiKey}
-                          sx={{
-                            py: 2,
-                            backgroundColor: '#1976d2',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: 18,
-                            '&:hover': { backgroundColor: '#1565c0' },
-                            '&:disabled': { backgroundColor: '#9e9e9e', color: '#fff' }
-                          }}
-                        >
-                          {isStripeLoading ? 'Processing…' : 'PAY'}
-                        </Button>
-                      ) : configLoading ? (
-                        <Box sx={{ flex: 1, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <CircularProgress size={24} />
-                        </Box>
-                      ) : null}
-                      <Button
-                        variant="outlined"
-                        fullWidth
-                        onClick={() => setShowCryptoModal(true)}
-                        sx={{ py: 2, fontWeight: 'bold', fontSize: 18 }}
-                      >
-                        Pay with Crypto
-                      </Button>
-                    </Box>
-                  </Grid>
-                </Grid>
+          {!video?.is_free && (
+            <Box sx={{ mt: 4, maxWidth: 480 }}>
+              {/* Botão principal de checkout, priorizando PayPal para ficar igual ao ebook checkout */}
+              {!configLoading && paypalClientId && paypalClientId.trim() !== '' && (
+                <Button
+                  fullWidth
+                  onClick={handlePayPalPayment}
+                  disabled={isStripeLoading}
+                  sx={{
+                    mb: 2,
+                    py: 1.5,
+                    borderRadius: 999,
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    textTransform: 'none',
+                    background: 'linear-gradient(135deg, #0070ba 0%, #1546a0 100%)',
+                    color: '#fff',
+                    boxShadow: '0 6px 18px rgba(0,112,186,0.45)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #0083d0 0%, #1852b0 100%)',
+                      boxShadow: '0 10px 24px rgba(0,112,186,0.6)',
+                    },
+                    '&:active': {
+                      boxShadow: '0 4px 14px rgba(0,112,186,0.5)',
+                    },
+                    '&:disabled': {
+                      backgroundColor: '#9e9e9e',
+                      boxShadow: 'none',
+                    },
+                  }}
+                >
+                  {isStripeLoading ? 'Processing…' : 'Buy with PayPal'}
+                </Button>
+              )}
 
-                  {telegramUsername && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                      <Button
-                      variant="text"
-                        startIcon={<TelegramIcon />}
-                        href={telegramHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      sx={{ color: '#229ED9', fontWeight: 'bold' }}
-                    >
-                      Questions? Chat on Telegram
-                      </Button>
-                  </Box>
-                  )}
-              </Box>
-            )}
+              {/* Fallback para Stripe ou Whop caso PayPal não esteja configurado */}
+              {!configLoading && (!paypalClientId || paypalClientId.trim() === '') && (stripePublishableKey || whoApiKey) && (
+                <Button
+                  fullWidth
+                  onClick={stripePublishableKey ? handleStripePaymentRedirect : handleWhoPaymentRedirect}
+                  disabled={isStripeLoading}
+                  sx={{
+                    mb: 2,
+                    py: 1.5,
+                    borderRadius: 999,
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    textTransform: 'none',
+                    background: 'linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%)',
+                    color: '#002b36',
+                    boxShadow: '0 6px 18px rgba(41,182,246,0.45)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #81d4fa 0%, #29b6f6 100%)',
+                      boxShadow: '0 10px 24px rgba(41,182,246,0.6)',
+                    },
+                    '&:active': {
+                      boxShadow: '0 4px 14px rgba(41,182,246,0.5)',
+                    },
+                    '&:disabled': {
+                      backgroundColor: '#9e9e9e',
+                      boxShadow: 'none',
+                    },
+                  }}
+                >
+                  {isStripeLoading ? 'Processing…' : 'Pay securely'}
+                </Button>
+              )}
+
+              {/* Opção de cripto como alternativa, em estilo secundário mais discreto */}
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => setShowCryptoModal(true)}
+                sx={{ py: 1.3, fontWeight: 600, fontSize: '0.95rem', borderRadius: 999 }}
+              >
+                Pay with Crypto
+              </Button>
+
+              {telegramUsername && (
+                <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  <Button
+                    variant="text"
+                    startIcon={<TelegramIcon />}
+                    href={telegramHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ color: '#229ED9', fontWeight: 'bold', textTransform: 'none' }}
+                  >
+                    Questions? Chat on Telegram
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          )}
         </Box>
         
         {/* Suggested Videos Section */}

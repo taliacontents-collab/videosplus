@@ -74,7 +74,7 @@ const Header: FC = () => {
       }}
     >
       <Toolbar sx={{ minHeight: { xs: '56px', sm: '64px' } }}>
-        {/* Site Logo/Name */}
+        {/* Site Logo/Name (simplificado, sem badges extras) */}
         <Box
           component={RouterLink}
           to="/"
@@ -121,57 +121,6 @@ const Header: FC = () => {
               </Box>
             </Typography>
           </Box>
-          
-          <Chip 
-            label="18+" 
-            size="small"
-            sx={{ 
-              ml: 1, 
-              bgcolor: theme => theme.palette.primary.main, 
-              color: 'white', 
-              fontWeight: 'bold',
-              height: '22px',
-              fontSize: '0.7rem'
-            }} 
-          />
-          
-          {/* SSL/Security Badge */}
-          {!isMobile && (
-            <Tooltip title="Secure SSL Encrypted Connection" arrow>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  ml: 2,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: '6px',
-                  background: theme.palette.mode === 'dark'
-                    ? 'rgba(76,175,80,0.15)'
-                    : 'rgba(76,175,80,0.1)',
-                  border: '1px solid rgba(76,175,80,0.3)',
-                }}
-              >
-                <HttpsIcon 
-                  sx={{ 
-                    fontSize: '16px', 
-                    color: '#4caf50',
-                    mr: 0.5
-                  }} 
-                />
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    color: '#4caf50',
-                    fontWeight: 600,
-                    fontSize: '0.7rem'
-                  }}
-                >
-                  SECURE
-                </Typography>
-              </Box>
-            </Tooltip>
-          )}
         </Box>
         
         {/* Search Bar */}

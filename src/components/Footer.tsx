@@ -76,41 +76,15 @@ const Footer: FC = () => {
         mt: 4
       }}
     >
-      {/* Age verification disclaimer */}
-      <Box 
-        sx={{ 
-          background: theme.palette.mode === 'dark' 
-            ? 'rgba(139,30,63,0.12)' 
-            : 'rgba(139,30,63,0.06)', 
-          p: 1.5, 
-          mb: 3,
-          borderRadius: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          maxWidth: 1200,
-          mx: 'auto',
-          border: theme.palette.mode === 'dark'
-            ? '1px solid rgba(139,30,63,0.25)'
-            : '1px solid rgba(139,30,63,0.15)'
-        }}
-      >
-        <WarningIcon sx={{ color: theme.palette.primary.main, mr: 1.5, fontSize: '1.2rem' }} />
-        <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? 'white' : '#111', fontSize: '0.85rem' }}>
-          <strong>AGE VERIFICATION:</strong> Adult content (18+). By accessing this site, you confirm you are at least 18 years old.
-        </Typography>
-      </Box>
-      
       <Container>
         <Grid container spacing={4}>
           <Grid item xs={12} md={4}>
             <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" sx={{ color: theme.palette.primary.main, fontWeight: 'bold', mb: 2 }}>
+              <Typography variant="h6" sx={{ color: theme.palette.primary.main, fontWeight: 'bold', mb: 1 }}>
                 {siteName}
               </Typography>
               <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
-                We offer exclusive premium adult content for our users. 
-                All videos are carefully selected to ensure 
-                the highest quality viewing experience for our 18+ audience.
+                Simple and secure access to your private video content.
               </Typography>
             </Box>
           </Grid>
@@ -266,33 +240,11 @@ const Footer: FC = () => {
           
           <Grid item xs={12} md={4}>
             <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 'bold', mb: 2 }}>
-              Security & Trust
+              Security & Payments
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)', mb: 2 }} paragraph>
-              Your security and privacy are our top priorities. We use industry-leading encryption and security measures.
+            <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)', mb: 1.5 }} paragraph>
+              Payments are processed securely and discretely.
             </Typography>
-            
-            {/* Trust Badges */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <HttpsIcon sx={{ color: '#4caf50', fontSize: 20 }} />
-                <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
-                  SSL Encrypted Connection
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <PaymentIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
-                <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
-                  Secure Payment Processing
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <SecurityIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
-                <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
-                  Discreet Billing
-                </Typography>
-              </Box>
-            </Box>
           </Grid>
         </Grid>
         

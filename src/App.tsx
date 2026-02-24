@@ -26,13 +26,11 @@ import PaymentNotifications from './components/PaymentNotifications';
 import PrivacyNotice from './components/PrivacyNotice';
 import ScrollToTop from './components/ScrollToTop';
 import CustomAnalytics from './components/CustomAnalytics';
-import AgeVerificationModal from './components/AgeVerificationModal';
 
 // Componente AppContent para usar hooks que dependem do Router
 const AppContent: FC = () => {
   const { siteName, loading } = useSiteConfig();
   const [showSplash, setShowSplash] = useState(false);
-  const [showAgeVerification, setShowAgeVerification] = useState(true);
   const location = useLocation();
   const enableSplash = false; // feature-flag: disable splash animation
   
@@ -61,24 +59,12 @@ const AppContent: FC = () => {
     setShowSplash(false);
   };
 
-  // Função para confirmar idade
-  const handleAgeConfirm = () => {
-    setShowAgeVerification(false);
-  };
-
-  // Função para rejeitar acesso
-  const handleAgeReject = () => {
-    // Redirecionar para uma página de bloqueio ou fechar o site
-    window.location.href = 'https://www.google.com';
-  };
-  
   return (
     <Box sx={{ 
       display: 'flex',
       flexDirection: 'column',
       minHeight: '100vh',
     }}>
-      <AgeVerificationModal open={showAgeVerification} onConfirm={handleAgeConfirm} onReject={handleAgeReject} />
       {enableSplash && showSplash && <SplashAnimation onAnimationComplete={handleAnimationComplete} />}
       <PrivacyNotice />
       <PaymentNotifications />

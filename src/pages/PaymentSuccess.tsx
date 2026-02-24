@@ -33,7 +33,7 @@ interface PaymentData {
   videoPrice: number;
   productLink?: string;
   transactionId: string;
-  paymentMethod: 'stripe' | 'who';
+  paymentMethod: 'stripe' | 'who' | 'paypal';
   buyerEmail?: string;
   buyerName?: string;
 }
@@ -60,12 +60,13 @@ const PaymentSuccess: FC = () => {
 
         // Get parameters from URL
         const videoId = searchParams.get('video_id');
-        const sessionId = searchParams.get('session_id'); // Pode ser null para Whop
+        const sessionId = searchParams.get('session_id') || searchParams.get('token'); // Pode ser null para Whop ou PayPal token
         const paymentSuccess = searchParams.get('payment_success');
-        const paymentMethod = searchParams.get('payment_method') as 'stripe' | 'who' || 'stripe';
+        const paymentMethod = searchParams.get('payment_method') as 'stripe' | 'who' | 'paypal' || 'stripe';
         const buyerEmail = searchParams.get('buyer_email');
         const buyerName = searchParams.get('buyer_name');
         const offerType = searchParams.get('offer_type'); // Para promo de todos os vídeos
+        const payerId = searchParams.get('PayerID'); // PayPal specific
 
         // Se não tem video_id, pode ser oferta de todos os vídeos
         if (!videoId && !offerType) {
