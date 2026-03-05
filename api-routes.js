@@ -375,25 +375,7 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// GET /api/users/:id - Obter usuário por ID
-router.get('/users/:id', async (req, res) => {
-  try {
-    if (!requireSupabase(res)) return;
-    const { data: user, error } = await supabase.from('users').select('*').eq('id', req.params.id).maybeSingle();
-    if (error) throw error;
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    res.json(user);
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    res.status(500).json({ error: 'Failed to fetch user' });
-  }
-});
-
-// GET /api/users/email/:email - Obter usuário por email
+// GET /api/users/email/:email - Obter usuário por email (DEVE vir antes de /users/:id)
 router.get('/users/email/:email', async (req, res) => {
   try {
     if (!requireSupabase(res)) return;
@@ -413,6 +395,24 @@ router.get('/users/email/:email', async (req, res) => {
   } catch (error) {
     console.error('Error fetching user by email:', error);
     res.status(500).json({ error: 'Failed to fetch user', details: error.message });
+  }
+});
+
+// GET /api/users/:id - Obter usuário por ID (DEVE vir depois de /users/email/:email)
+router.get('/users/:id', async (req, res) => {
+  try {
+    if (!requireSupabase(res)) return;
+    const { data: user, error } = await supabase.from('users').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) throw error;
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
