@@ -304,7 +304,7 @@ Please let me know how to proceed with payment.`;
       const successUrl = `${window.location.origin}/#/payment-success?video_id=${video.$id}&payment_method=paypal`;
       const cancelUrl = `${window.location.origin}/#/video/${video.$id}?payment_canceled=true`;
       
-      const CHECKOUT_BASE = import.meta.env.VITE_CHECKOUT_URL || (import.meta.env.DEV ? 'http://localhost:3000' : (import.meta.env.VITE_API_URL || ''));
+      const CHECKOUT_BASE = import.meta.env.VITE_CHECKOUT_URL || (import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || ''));
       const maskedUrl = `${CHECKOUT_BASE}/api/paypal-checkout?` + new URLSearchParams({
         amount: video.price.toFixed(2),
         currency: 'USD',

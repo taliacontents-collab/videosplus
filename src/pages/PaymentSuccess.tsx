@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { FC } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Container from '@mui/material/Container';
@@ -52,6 +52,9 @@ const PaymentSuccess: FC = () => {
   const [copiedLinkIndex, setCopiedLinkIndex] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
 
+  // Guarda para salvar a compra apenas uma vez por sessão
+  const purchaseSavedRef = useRef(false);
+
   useEffect(() => {
     const loadPaymentData = async () => {
       try {
@@ -60,13 +63,14 @@ const PaymentSuccess: FC = () => {
 
         // Get parameters from URL
         const videoId = searchParams.get('video_id');
-        const sessionId = searchParams.get('session_id') || searchParams.get('token'); // Pode ser null para Whop ou PayPal token
-        const paymentSuccess = searchParams.get('payment_success');
+        // Para PayPal: order_id é o ID estável da transação; payer_id e buyer_email vêm do onApprove
+        const orderId = searchParams.get('order_id');
+        const paypalTokenFromQuery = new URLSearchParams(window.location.search).get('token');
+        const sessionId = orderId || searchParams.get('session_id') || searchParams.get('token') || paypalTokenFromQuery;
         const paymentMethod = searchParams.get('payment_method') as 'stripe' | 'who' | 'paypal' || 'stripe';
         const buyerEmail = searchParams.get('buyer_email');
         const buyerName = searchParams.get('buyer_name');
-        const offerType = searchParams.get('offer_type'); // Para promo de todos os vídeos
-        const payerId = searchParams.get('PayerID'); // PayPal specific
+        const offerType = searchParams.get('offer_type');
 
         // Se não tem video_id, pode ser oferta de todos os vídeos
         if (!videoId && !offerType) {
@@ -78,8 +82,12 @@ const PaymentSuccess: FC = () => {
         // Para oferta de todos os vídeos, usar lógica diferente
         if (offerType === 'all_content') {
           const price = parseFloat(searchParams.get('price') || '100');
-          const generatedSessionId = sessionId || `who_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          
+          // Usar sessionId estável ou gerar um e guardar no sessionStorage para esta sessão
+          const sessionKey = `purchase_txid_all_content_${paymentMethod}`;
+          const storedTxId = sessionStorage.getItem(sessionKey);
+          const generatedSessionId = sessionId || storedTxId || `who_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          if (!storedTxId) sessionStorage.setItem(sessionKey, generatedSessionId);
+
           const data: PaymentData = {
             videoId: 'all_videos',
             videoTitle: 'All Content Access',
@@ -93,39 +101,47 @@ const PaymentSuccess: FC = () => {
 
           setPaymentData(data);
 
-          // Salvar compra no Supabase
-          try {
-            await SupabaseService.createPurchase({
-              video_id: 'all_videos',
-              buyer_email: buyerEmail || 'unknown@example.com',
-              buyer_name: buyerName || null,
-              transaction_id: generatedSessionId,
-              payment_method: paymentMethod,
-              amount: price,
-              currency: 'usd',
-              status: 'completed',
-              video_title: 'All Content Access',
-              product_link: null,
-              metadata: { sessionId: generatedSessionId, paymentMethod, offerType: 'all_content' }
-            });
-            console.log('All content purchase saved to Supabase successfully');
-          } catch (dbError) {
-            console.error('Error saving all content purchase to Supabase:', dbError);
-          }
-
-          // Enviar notificação Telegram
-          try {
-            await TelegramService.sendSaleNotification({
-              videoTitle: 'All Content Access',
-              videoPrice: price,
-              buyerEmail: buyerEmail || undefined,
-              buyerName: buyerName || undefined,
-              transactionId: generatedSessionId,
-              paymentMethod,
-              timestamp: new Date().toLocaleString('pt-BR')
-            });
-          } catch (telegramError) {
-            console.error('Failed to send Telegram notification:', telegramError);
+          // Salvar compra no Supabase apenas uma vez (guarda dupla: ref + sessionStorage)
+          const alreadySaved = sessionStorage.getItem(`purchase_saved_${generatedSessionId}`);
+          if (!purchaseSavedRef.current && !alreadySaved) {
+            purchaseSavedRef.current = true;
+            sessionStorage.setItem(`purchase_saved_${generatedSessionId}`, '1');
+            try {
+              const existing = await SupabaseService.getPurchaseByTransactionId(generatedSessionId);
+              if (!existing) {
+                await SupabaseService.createPurchase({
+                  video_id: 'all_videos',
+                  buyer_email: buyerEmail || 'unknown@example.com',
+                  buyer_name: buyerName || null,
+                  transaction_id: generatedSessionId,
+                  payment_method: paymentMethod,
+                  amount: price,
+                  currency: 'usd',
+                  status: 'completed',
+                  video_title: 'All Content Access',
+                  product_link: null,
+                  metadata: { sessionId: generatedSessionId, paymentMethod, offerType: 'all_content' }
+                });
+                console.log('All content purchase saved to Supabase successfully');
+                try {
+                  await TelegramService.sendSaleNotification({
+                    videoTitle: 'All Content Access',
+                    videoPrice: price,
+                    buyerEmail: buyerEmail || undefined,
+                    buyerName: buyerName || undefined,
+                    transactionId: generatedSessionId,
+                    paymentMethod,
+                    timestamp: new Date().toLocaleString('pt-BR')
+                  });
+                } catch (telegramError) {
+                  console.error('Failed to send Telegram notification:', telegramError);
+                }
+              } else {
+                console.log('Purchase already exists, skipping duplicate save.');
+              }
+            } catch (dbError) {
+              console.error('Error saving all content purchase to Supabase:', dbError);
+            }
           }
 
           setLoading(false);
@@ -147,8 +163,11 @@ const PaymentSuccess: FC = () => {
           return;
         }
 
-        // Gerar um transaction ID único se não tiver session_id
-        const generatedTransactionId = sessionId || `${paymentMethod}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Usar sessionId estável ou recuperar/gerar e persistir no sessionStorage
+        const sessionKey = `purchase_txid_${videoId}_${paymentMethod}`;
+        const storedTxId = sessionStorage.getItem(sessionKey);
+        const generatedTransactionId = sessionId || storedTxId || `${paymentMethod}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        if (!storedTxId) sessionStorage.setItem(sessionKey, generatedTransactionId);
 
         const data: PaymentData = {
           videoId,
@@ -163,41 +182,47 @@ const PaymentSuccess: FC = () => {
 
         setPaymentData(data);
 
-        // Save purchase to Supabase
-        try {
-          await SupabaseService.createPurchase({
-            video_id: videoId,
-            buyer_email: buyerEmail || 'unknown@example.com',
-            buyer_name: buyerName || null,
-            transaction_id: generatedTransactionId,
-            payment_method: paymentMethod,
-            amount: video.price,
-            currency: 'usd',
-            status: 'completed',
-            video_title: video.title,
-            product_link: video.product_link || null,
-            metadata: { sessionId: generatedTransactionId, paymentMethod }
-          });
-          console.log('Purchase saved to Supabase successfully');
-        } catch (dbError) {
-          console.error('Error saving purchase to Supabase:', dbError);
-          // Don't block user flow if database save fails
-        }
-
-        // Send Telegram notification
-        try {
-          await TelegramService.sendSaleNotification({
-            videoTitle: video.title,
-            videoPrice: video.price,
-            buyerEmail: buyerEmail || undefined,
-            buyerName: buyerName || undefined,
-            transactionId: generatedTransactionId,
-            paymentMethod,
-            timestamp: new Date().toLocaleString('pt-BR')
-          });
-        } catch (telegramError) {
-          console.error('Failed to send Telegram notification:', telegramError);
-          // Don't show this error to the user since payment was successful
+        // Salvar compra no Supabase apenas uma vez (guarda dupla: ref + sessionStorage)
+        const alreadySaved = sessionStorage.getItem(`purchase_saved_${generatedTransactionId}`);
+        if (!purchaseSavedRef.current && !alreadySaved) {
+          purchaseSavedRef.current = true;
+          sessionStorage.setItem(`purchase_saved_${generatedTransactionId}`, '1');
+          try {
+            const existing = await SupabaseService.getPurchaseByTransactionId(generatedTransactionId);
+            if (!existing) {
+              await SupabaseService.createPurchase({
+                video_id: videoId,
+                buyer_email: buyerEmail || 'unknown@example.com',
+                buyer_name: buyerName || null,
+                transaction_id: generatedTransactionId,
+                payment_method: paymentMethod,
+                amount: video.price,
+                currency: 'usd',
+                status: 'completed',
+                video_title: video.title,
+                product_link: video.product_link || null,
+                metadata: { sessionId: generatedTransactionId, paymentMethod }
+              });
+              console.log('Purchase saved to Supabase successfully');
+              try {
+                await TelegramService.sendSaleNotification({
+                  videoTitle: video.title,
+                  videoPrice: video.price,
+                  buyerEmail: buyerEmail || undefined,
+                  buyerName: buyerName || undefined,
+                  transactionId: generatedTransactionId,
+                  paymentMethod,
+                  timestamp: new Date().toLocaleString('pt-BR')
+                });
+              } catch (telegramError) {
+                console.error('Failed to send Telegram notification:', telegramError);
+              }
+            } else {
+              console.log('Purchase already exists, skipping duplicate save.');
+            }
+          } catch (dbError) {
+            console.error('Error saving purchase to Supabase:', dbError);
+          }
         }
 
       } catch (err) {

@@ -395,7 +395,7 @@ const Admin: FC = () => {
       setLoading(true);
       setError(null);
       
-      const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3000' : (import.meta.env.VITE_API_URL || '');
+      const API_BASE_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || '');
       const resp = await fetch(`${API_BASE_URL}/api/site-config`);
       if (!resp.ok) throw new Error(`Failed to fetch site config: ${resp.status}`);
       const configData = await resp.json();
@@ -752,7 +752,7 @@ const Admin: FC = () => {
       };
 
       // Save to Supabase via API
-      const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3000' : (import.meta.env.VITE_API_URL || '');
+      const API_BASE_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || '');
       const payload: any = {
         site_name: configData.siteName,
         who_api_key: configData.whoApiKey,

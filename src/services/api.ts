@@ -11,7 +11,7 @@ const isDev = import.meta.env.DEV;
 // Função para detectar automaticamente a URL da API baseada no domínio atual
 const getApiBaseUrl = () => {
   if (isDev) {
-    return 'http://localhost:3000';
+    return ''; // URL relativa: pedidos vão para o mesmo origin e o Vite faz proxy para o backend
   }
   
   // Se VITE_API_URL estiver configurado, use ele

@@ -45,7 +45,7 @@ class WasabiService {
   private async initializeWithDefaultConfig(): Promise<void> {
     try {
       // Tentar carregar configurações do site
-      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '';
+      const baseUrl = import.meta.env.DEV ? '' : '';
       const response = await fetch(`${baseUrl}/api/site-config`);
       if (response.ok) {
         const siteConfig = await response.json();
@@ -79,7 +79,7 @@ class WasabiService {
       formData.append('file', file);
       
       // Usar a URL correta da API (porta 3000)
-      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '';
+      const baseUrl = import.meta.env.DEV ? '' : '';
       const endpoint = `/api/upload/${folder}`;
       const fullUrl = `${baseUrl}${endpoint}`;
       
@@ -119,7 +119,7 @@ class WasabiService {
     
     try {
       // Usar o servidor para gerar URL assinada
-      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '';
+      const baseUrl = import.meta.env.DEV ? '' : '';
       const encodedFileId = encodeURIComponent(fileId);
       // console.log('Requesting signed URL for fileId:', fileId, 'encoded:', encodedFileId);
       const response = await fetch(`${baseUrl}/api/signed-url/${encodedFileId}`);
@@ -154,7 +154,7 @@ class WasabiService {
     
     try {
       // Usar o servidor para gerar URL assinada
-      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '';
+      const baseUrl = import.meta.env.DEV ? '' : '';
       const encodedThumbnailId = encodeURIComponent(thumbnailId);
       // console.log('Requesting signed URL for thumbnailId:', thumbnailId, 'encoded:', encodedThumbnailId);
       const response = await fetch(`${baseUrl}/api/signed-url/${encodedThumbnailId}`);
@@ -189,7 +189,7 @@ class WasabiService {
     
     try {
       // Usar o servidor para deletar arquivo
-      const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : '';
+      const baseUrl = import.meta.env.DEV ? '' : '';
       const encodedFileId = encodeURIComponent(fileId);
       const response = await fetch(`${baseUrl}/api/delete-file/${encodedFileId}`, {
         method: 'DELETE'

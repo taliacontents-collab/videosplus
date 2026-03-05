@@ -69,8 +69,8 @@ export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Helper: server API base
-  const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3000' : (import.meta.env.VITE_API_URL || '');
+  // Em desenvolvimento usa URL relativa para o proxy do Vite (/api → backend). Em produção usa VITE_API_URL ou mesmo origin.
+  const API_BASE_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || '');
 
   // Login function using Supabase-backed API
   const login = async (email: string, password: string, redirectPath?: string) => {
